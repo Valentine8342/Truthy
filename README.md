@@ -49,4 +49,4 @@ This extension encodes comments before posting and decodes them when viewing on 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License
