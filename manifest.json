@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "Scribe",
-    "version": "1.1",
+    "name": "Truthy",
+    "version": "1.0",
     "description": "Encodes comments before posting and decodes them when viewing.",
     "permissions": [
       "activeTab",
