@@ -1,6 +1,7 @@
 const config = { childList: true, subtree: true };
 let typingTimer;
-const typingInterval = 5000;
+const typingInterval = 1000;
+const encodingMessageDelay = 4000;
 
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -14,9 +15,12 @@ const observer = new MutationObserver((mutations) => {
           clearTimeout(typingTimer);
           typingTimer = setTimeout(() => {
             const comment = commentBox.innerText;
-            chrome.runtime.sendMessage({ action: "encode", text: comment }, (response) => {
-              commentBox.innerText = response.encoded;
-            });
+            showEncodingMessage(commentBox);
+            setTimeout(() => {
+              chrome.runtime.sendMessage({ action: "encode", text: comment }, (response) => {
+                commentBox.innerText = response.encoded;
+              });
+            }, encodingMessageDelay);
           }, typingInterval);
         });
       }
@@ -45,4 +49,12 @@ function decodeComments(commentElements) {
       });
     }
   });
+}
+
+function showEncodingMessage(commentBox) {
+  const originalText = commentBox.innerText;
+  commentBox.innerText = "Encoding text...";
+  setTimeout(() => {
+    commentBox.innerText = originalText;
+  }, encodingMessageDelay);
 }
