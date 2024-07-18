@@ -1,3 +1,15 @@
+let encryptionEnabled = true;
+
+chrome.storage.sync.get('encryptionEnabled', (data) => {
+  encryptionEnabled = data.encryptionEnabled !== false;
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'toggleEncryption') {
+    encryptionEnabled = request.enabled;
+  }
+});
+
 const config = { childList: true, subtree: true };
 let typingTimer;
 const typingInterval = 1600;
@@ -26,12 +38,14 @@ const observer = new MutationObserver((mutations) => {
           }
           typingTimer = setTimeout(() => {
             const comment = commentBox.innerText;
-            showEncodingMessage(commentBox);
-            setTimeout(() => {
-              chrome.runtime.sendMessage({ action: "encode", text: comment }, (response) => {
-                commentBox.innerText = response.encoded;
-              });
-            }, encodingMessageDelay);
+            if (encryptionEnabled) {
+              showEncodingMessage(commentBox);
+              setTimeout(() => {
+                chrome.runtime.sendMessage({ action: "encode", text: comment }, (response) => {
+                  commentBox.innerText = response.encoded;
+                });
+              }, encodingMessageDelay);
+            }
           }, typingInterval);
         }
 
@@ -64,7 +78,7 @@ function decodeComments(commentElements) {
   commentElements.forEach((commentElement) => {
     commentElement.dataset.decoded = 'true';
     const commentText = commentElement.querySelector('span.yt-core-attributed-string').innerText;
-    if (commentText.startsWith("ENCODED:")) {
+    if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
           const decodedHtml = response.decoded.split('\n').map(line => 
