@@ -67,7 +67,10 @@ function decodeComments(commentElements) {
     if (commentText.startsWith("ENCODED:")) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
-          commentElement.querySelector('span.yt-core-attributed-string').innerText = response.decoded;
+          const decodedHtml = response.decoded.split('\n').map(line => 
+            line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          ).join('<br>');
+          commentElement.querySelector('span.yt-core-attributed-string').innerHTML = decodedHtml;
         }
       });
     }
