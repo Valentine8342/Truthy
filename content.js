@@ -1,12 +1,16 @@
 let encryptionEnabled = true;
+let disclaimerEnabled = true;
 
-chrome.storage.sync.get('encryptionEnabled', (data) => {
+chrome.storage.sync.get(['encryptionEnabled', 'disclaimerEnabled'], (data) => {
   encryptionEnabled = data.encryptionEnabled !== false;
+  disclaimerEnabled = data.disclaimerEnabled !== false;
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'toggleEncryption') {
     encryptionEnabled = request.enabled;
+  } else if (request.action === 'toggleDisclaimer') {
+    disclaimerEnabled = request.enabled;
   }
 });
 
@@ -41,7 +45,11 @@ const observer = new MutationObserver((mutations) => {
             if (encryptionEnabled) {
               showEncodingMessage(commentBox);
               setTimeout(() => {
-                chrome.runtime.sendMessage({ action: "encode", text: comment }, (response) => {
+                chrome.runtime.sendMessage({ 
+                  action: "encode", 
+                  text: comment, 
+                  includeDisclaimer: disclaimerEnabled 
+                }, (response) => {
                   commentBox.innerText = response.encoded;
                 });
               }, encodingMessageDelay);
