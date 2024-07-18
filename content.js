@@ -1,6 +1,6 @@
 const config = { childList: true, subtree: true };
 let typingTimer;
-const typingInterval = 1000;
+const typingInterval = 1600;
 const encodingMessageDelay = 4000;
 
 const observer = new MutationObserver((mutations) => {
@@ -13,6 +13,9 @@ const observer = new MutationObserver((mutations) => {
         commentBox.dataset.observed = 'true';
         commentBox.addEventListener('input', () => {
           clearTimeout(typingTimer);
+          if (commentBox.innerText.trim() === '') {
+            return;
+          }
           typingTimer = setTimeout(() => {
             const comment = commentBox.innerText;
             showEncodingMessage(commentBox);
