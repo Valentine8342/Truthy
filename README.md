@@ -13,14 +13,6 @@ Truthy is a Chrome extension that encodes comments before posting and decodes th
 2. Open Chrome and navigate to `chrome://extensions/`.
 3. Enable "Developer mode" by toggling the switch in the top right corner.
 4. Click on "Load unpacked" and select the directory where you downloaded/cloned this repository.
-
-## Permissions Justification
-
-- **activeTab**: Used to interact with the currently active tab, allowing the extension to encode and decode comments on YouTube.
-- **host_permissions**: Required for `https://www.youtube.com/*` to access and modify the content of YouTube pages to encode and decode comments.
-- **remote code**: The extension does not use remote code. All code is included within the extension package and executed locally.
-- **scripting**: Required to inject and execute scripts on YouTube pages to perform the encoding and decoding of comments.
-
 ## Usage
 
 1. Navigate to YouTube and start typing a comment.
