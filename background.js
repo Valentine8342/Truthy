@@ -1,10 +1,11 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "encode") {
     const encoded = caesarCipher(request.text, 3);
-    sendResponse({ encoded: `ENCODED:${encoded}` });
+    const appendedMessage = `\n\nThis comment was encrypted using Truthy - A Chrome Extension to protect your free speech`;
+    sendResponse({ encoded: `ENCODED:${encoded}${appendedMessage}` });
   } else if (request.action === "decode") {
     if (request.text.startsWith("ENCODED:")) {
-      const decoded = caesarCipher(request.text.substring(8), -3);
+      const decoded = caesarCipher(request.text.substring(8).split('\n\n')[0], -3);
       sendResponse({ decoded });
     } else {
       sendResponse({ decoded: request.text });

@@ -12,6 +12,14 @@ const observer = new MutationObserver((mutations) => {
       if (commentBox && !commentBox.dataset.observed) {
         commentBox.dataset.observed = 'true';
         commentBox.addEventListener('input', () => {
+          handleCommentBoxChange(commentBox);
+        });
+
+        commentBox.addEventListener('paste', (event) => {
+          handlePasteEvent(event, commentBox);
+        });
+
+        function handleCommentBoxChange(commentBox) {
           clearTimeout(typingTimer);
           if (commentBox.innerText.trim() === '') {
             return;
@@ -25,7 +33,13 @@ const observer = new MutationObserver((mutations) => {
               });
             }, encodingMessageDelay);
           }, typingInterval);
-        });
+        }
+
+        function handlePasteEvent(event, commentBox) {
+          setTimeout(() => {
+            handleCommentBoxChange(commentBox);
+          }, 0);
+        }
       }
 
       decodeComments(commentElements);
@@ -36,6 +50,12 @@ const observer = new MutationObserver((mutations) => {
 observer.observe(document.body, config);
 
 window.addEventListener('scroll', () => {
+  const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
+  decodeComments(commentElements);
+});
+
+// Decode comments on initial load
+document.addEventListener('DOMContentLoaded', () => {
   const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
   decodeComments(commentElements);
 });
