@@ -41,11 +41,11 @@ const observer = new MutationObserver((mutations) => {
       const commentBodyHeader = document.querySelector('comment-body-header');
       if (commentBodyHeader && !commentBodyHeader.dataset.textBoxAdded) {
         commentBodyHeader.dataset.textBoxAdded = 'true';
-        const textBox = document.createElement('input');
-        textBox.type = 'text';
+        const textBox = document.createElement('textarea');
         textBox.placeholder = 'Enter text to be encoded';
-        textBox.className = 'block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        textBox.className = 'block w-full h-[100px] p-2 border rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
         textBox.style.marginTop = '8px';
+        textBox.style.resize = 'none';
         commentBodyHeader.appendChild(textBox);
 
         textBox.addEventListener('input', () => {
@@ -79,9 +79,12 @@ function decodeComments(commentElements) {
     if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
-          const decodedHtml = response.decoded.split('\n').map(line => 
+          const decodedLines = response.decoded.split('\n');
+          const firstLine = decodedLines[0].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const remainingLines = decodedLines.slice(1).map(line => 
             line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           ).join('<br>');
+          const decodedHtml = `${firstLine}<br>${remainingLines}`;
           commentElement.querySelector('span.yt-core-attributed-string').innerHTML = decodedHtml;
         }
       });
