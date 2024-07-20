@@ -24,6 +24,8 @@ const observer = new MutationObserver((mutations) => {
     if (mutation.type === 'childList') {
       const commentBox = document.querySelector('div#contenteditable-root');
       const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
+      const shredditComposer = document.querySelector('shreddit-composer:not([data-text-box-added])');
+      const redditCommentElements = document.querySelectorAll('div[id$="-comment-rtjson-content"]');
 
       if (commentBox && !commentBox.dataset.observed) {
         commentBox.dataset.observed = 'true';
@@ -37,6 +39,7 @@ const observer = new MutationObserver((mutations) => {
       }
 
       decodeComments(commentElements);
+      decodeRedditComments(redditCommentElements);
 
       const commentBodyHeader = document.querySelector('comment-body-header');
       if (commentBodyHeader && !commentBodyHeader.dataset.textBoxAdded) {
@@ -47,6 +50,24 @@ const observer = new MutationObserver((mutations) => {
         textBox.style.marginTop = '8px';
         textBox.style.resize = 'none';
         commentBodyHeader.appendChild(textBox);
+
+        textBox.addEventListener('input', () => {
+          handleTextBoxChange(textBox);
+        });
+
+        textBox.addEventListener('paste', (event) => {
+          handleTextBoxPasteEvent(event, textBox);
+        });
+      }
+
+      if (shredditComposer) {
+        shredditComposer.dataset.textBoxAdded = 'true';
+        const textBox = document.createElement('textarea');
+        textBox.placeholder = 'Enter text to be encoded';
+        textBox.className = 'block w-full h-[100px] p-2 border rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        textBox.style.marginTop = '8px';
+        textBox.style.resize = 'none';
+        shredditComposer.appendChild(textBox);
 
         textBox.addEventListener('input', () => {
           handleTextBoxChange(textBox);
@@ -86,6 +107,26 @@ function decodeComments(commentElements) {
           ).join('<br>');
           const decodedHtml = `${firstLine}<br>${remainingLines}`;
           commentElement.querySelector('span.yt-core-attributed-string').innerHTML = decodedHtml;
+        }
+      });
+    }
+  });
+}
+
+function decodeRedditComments(redditCommentElements) {
+  redditCommentElements.forEach((commentElement) => {
+    const commentText = commentElement.querySelector('p').innerText;
+    if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
+      chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
+        if (response.decoded !== commentText) {
+          const decodedLines = response.decoded.split('\n');
+          const firstLine = decodedLines[0].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const remainingLines = decodedLines.slice(1).map(line => 
+            line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          ).join('<br>');
+          const decodedHtml = `${firstLine}<br>${remainingLines}`;
+          commentElement.querySelector('p').innerHTML = decodedHtml;
+          commentElement.dataset.decoded = 'true';
         }
       });
     }
