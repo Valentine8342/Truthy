@@ -1,6 +1,5 @@
 let encryptionEnabled = true;
 let disclaimerEnabled = true;
-let isEncoding = false;
 
 chrome.storage.sync.get(['encryptionEnabled', 'disclaimerEnabled'], (data) => {
   encryptionEnabled = data.encryptionEnabled !== false;
@@ -23,33 +22,40 @@ const encodingMessageDelay = 4000;
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
     if (mutation.type === 'childList') {
-      const youtubeCommentBox = document.querySelector('div#contenteditable-root');
-      const redditCommentBox = document.querySelector('div[contenteditable="true"][name="body"]');
-      const youtubeCommentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
+      const commentBox = document.querySelector('div#contenteditable-root');
+      const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
 
-      if (youtubeCommentBox && !youtubeCommentBox.dataset.observed) {
-        youtubeCommentBox.dataset.observed = 'true';
-        youtubeCommentBox.addEventListener('input', () => {
-          if (!isEncoding) handleCommentBoxChange(youtubeCommentBox);
+      if (commentBox && !commentBox.dataset.observed) {
+        commentBox.dataset.observed = 'true';
+        commentBox.addEventListener('input', () => {
+          handleCommentBoxChange(commentBox);
         });
 
-        youtubeCommentBox.addEventListener('paste', (event) => {
-          if (!isEncoding) handlePasteEvent(event, youtubeCommentBox);
-        });
-      }
-
-      if (redditCommentBox && !redditCommentBox.dataset.observed) {
-        redditCommentBox.dataset.observed = 'true';
-        redditCommentBox.addEventListener('input', () => {
-          if (!isEncoding) handleCommentBoxChange(redditCommentBox);
-        });
-
-        redditCommentBox.addEventListener('paste', (event) => {
-          if (!isEncoding) handlePasteEvent(event, redditCommentBox);
+        commentBox.addEventListener('paste', (event) => {
+          handlePasteEvent(event, commentBox);
         });
       }
 
-      decodeComments(youtubeCommentElements);
+      decodeComments(commentElements);
+
+      const commentBodyHeader = document.querySelector('comment-body-header');
+      if (commentBodyHeader && !commentBodyHeader.dataset.textBoxAdded) {
+        commentBodyHeader.dataset.textBoxAdded = 'true';
+        const textBox = document.createElement('input');
+        textBox.type = 'text';
+        textBox.placeholder = 'Enter text to be encoded';
+        textBox.className = 'block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        textBox.style.marginTop = '8px';
+        commentBodyHeader.appendChild(textBox);
+
+        textBox.addEventListener('input', () => {
+          handleTextBoxChange(textBox);
+        });
+
+        textBox.addEventListener('paste', (event) => {
+          handleTextBoxPasteEvent(event, textBox);
+        });
+      }
     }
   });
 });
@@ -57,47 +63,45 @@ const observer = new MutationObserver((mutations) => {
 observer.observe(document.body, config);
 
 window.addEventListener('scroll', () => {
-  const youtubeCommentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
-  decodeComments(youtubeCommentElements);
+  const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
+  decodeComments(commentElements);
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  const youtubeCommentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
-  decodeComments(youtubeCommentElements);
+  const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
+  decodeComments(commentElements);
 });
 
 function decodeComments(commentElements) {
   commentElements.forEach((commentElement) => {
     commentElement.dataset.decoded = 'true';
-    const spanElement = commentElement.querySelector('span.yt-core-attributed-string');
-    const commentText = spanElement.innerText;
+    const commentText = commentElement.querySelector('span.yt-core-attributed-string').innerText;
     if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
           const decodedHtml = response.decoded.split('\n').map(line => 
             line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           ).join('<br>');
-          spanElement.innerHTML = `<span class="original-text">${commentText}</span><br>${decodedHtml}`;
-          setTimeout(() => removeOriginalText(spanElement), 500);
+          commentElement.querySelector('span.yt-core-attributed-string').innerHTML = decodedHtml;
         }
       });
     }
   });
 }
 
-function removeOriginalText(element) {
-  const originalTextElement = element.querySelector('.original-text');
-  if (originalTextElement) {
-    originalTextElement.nextElementSibling.remove();
-    originalTextElement.remove();
+function showEncodingMessage(inputElement) {
+  const originalText = inputElement.value || inputElement.innerText;
+  if (inputElement.tagName === 'INPUT' || inputElement.tagName === 'TEXTAREA') {
+    inputElement.value = "Encoding text...";
+  } else {
+    inputElement.innerText = "Encoding text...";
   }
-}
-
-function showEncodingMessage(commentBox) {
-  const originalText = commentBox.innerText;
-  commentBox.innerText = "Encoding text...";
   setTimeout(() => {
-    commentBox.innerText = originalText;
+    if (inputElement.tagName === 'INPUT' || inputElement.tagName === 'TEXTAREA') {
+      inputElement.value = originalText;
+    } else {
+      inputElement.innerText = originalText;
+    }
   }, encodingMessageDelay);
 }
 
@@ -109,7 +113,6 @@ function handleCommentBoxChange(commentBox) {
   typingTimer = setTimeout(() => {
     const comment = commentBox.innerText;
     if (encryptionEnabled) {
-      isEncoding = true;
       showEncodingMessage(commentBox);
       setTimeout(() => {
         chrome.runtime.sendMessage({ 
@@ -117,10 +120,7 @@ function handleCommentBoxChange(commentBox) {
           text: comment, 
           includeDisclaimer: disclaimerEnabled 
         }, (response) => {
-          if (response && response.encoded) {
-            insertTextAtCursor(commentBox, response.encoded);
-          }
-          isEncoding = false;
+          commentBox.innerText = response.encoded;
         });
       }, encodingMessageDelay);
     }
@@ -128,23 +128,35 @@ function handleCommentBoxChange(commentBox) {
 }
 
 function handlePasteEvent(event, commentBox) {
-  if (!isEncoding) {
-    setTimeout(() => {
-      handleCommentBoxChange(commentBox);
-    }, 0);
-  }
+  setTimeout(() => {
+    handleCommentBoxChange(commentBox);
+  }, 0);
 }
 
-function insertTextAtCursor(element, text) {
-  const range = document.createRange();
-  const sel = window.getSelection();
-  
-  element.focus();
-  range.selectNodeContents(element);
-  range.collapse(false);
-  
-  sel.removeAllRanges();
-  sel.addRange(range);
-  
-  document.execCommand('insertText', false, text);
+function handleTextBoxChange(textBox) {
+  clearTimeout(typingTimer);
+  if (textBox.value.trim() === '') {
+    return;
+  }
+  typingTimer = setTimeout(() => {
+    const text = textBox.value;
+    if (encryptionEnabled) {
+      showEncodingMessage(textBox);
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ 
+          action: "encode", 
+          text: text, 
+          includeDisclaimer: disclaimerEnabled 
+        }, (response) => {
+          textBox.value = response.encoded;
+        });
+      }, encodingMessageDelay);
+    }
+  }, typingInterval);
+}
+
+function handleTextBoxPasteEvent(event, textBox) {
+  setTimeout(() => {
+    handleTextBoxChange(textBox);
+  }, 0);
 }
