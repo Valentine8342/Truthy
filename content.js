@@ -34,37 +34,28 @@ const observer = new MutationObserver((mutations) => {
         commentBox.addEventListener('paste', (event) => {
           handlePasteEvent(event, commentBox);
         });
-
-        function handleCommentBoxChange(commentBox) {
-          clearTimeout(typingTimer);
-          if (commentBox.innerText.trim() === '') {
-            return;
-          }
-          typingTimer = setTimeout(() => {
-            const comment = commentBox.innerText;
-            if (encryptionEnabled) {
-              showEncodingMessage(commentBox);
-              setTimeout(() => {
-                chrome.runtime.sendMessage({ 
-                  action: "encode", 
-                  text: comment, 
-                  includeDisclaimer: disclaimerEnabled 
-                }, (response) => {
-                  commentBox.innerText = response.encoded;
-                });
-              }, encodingMessageDelay);
-            }
-          }, typingInterval);
-        }
-
-        function handlePasteEvent(event, commentBox) {
-          setTimeout(() => {
-            handleCommentBoxChange(commentBox);
-          }, 0);
-        }
       }
 
       decodeComments(commentElements);
+
+      const commentBodyHeader = document.querySelector('comment-body-header');
+      if (commentBodyHeader && !commentBodyHeader.dataset.textBoxAdded) {
+        commentBodyHeader.dataset.textBoxAdded = 'true';
+        const textBox = document.createElement('textarea');
+        textBox.placeholder = 'Enter text to be encoded';
+        textBox.className = 'block w-full h-[100px] p-2 border rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        textBox.style.marginTop = '8px';
+        textBox.style.resize = 'none';
+        commentBodyHeader.appendChild(textBox);
+
+        textBox.addEventListener('input', () => {
+          handleTextBoxChange(textBox);
+        });
+
+        textBox.addEventListener('paste', (event) => {
+          handleTextBoxPasteEvent(event, textBox);
+        });
+      }
     }
   });
 });
@@ -76,7 +67,6 @@ window.addEventListener('scroll', () => {
   decodeComments(commentElements);
 });
 
-// Decode comments on initial load
 document.addEventListener('DOMContentLoaded', () => {
   const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
   decodeComments(commentElements);
@@ -89,9 +79,12 @@ function decodeComments(commentElements) {
     if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
-          const decodedHtml = response.decoded.split('\n').map(line => 
+          const decodedLines = response.decoded.split('\n');
+          const firstLine = decodedLines[0].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const remainingLines = decodedLines.slice(1).map(line => 
             line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           ).join('<br>');
+          const decodedHtml = `${firstLine}<br>${remainingLines}`;
           commentElement.querySelector('span.yt-core-attributed-string').innerHTML = decodedHtml;
         }
       });
@@ -99,10 +92,74 @@ function decodeComments(commentElements) {
   });
 }
 
-function showEncodingMessage(commentBox) {
-  const originalText = commentBox.innerText;
-  commentBox.innerText = "Encoding text...";
+function showEncodingMessage(inputElement) {
+  const originalText = inputElement.value || inputElement.innerText;
+  if (inputElement.tagName === 'INPUT' || inputElement.tagName === 'TEXTAREA') {
+    inputElement.value = "Encoding text...";
+  } else {
+    inputElement.innerText = "Encoding text...";
+  }
   setTimeout(() => {
-    commentBox.innerText = originalText;
+    if (inputElement.tagName === 'INPUT' || inputElement.tagName === 'TEXTAREA') {
+      inputElement.value = originalText;
+    } else {
+      inputElement.innerText = originalText;
+    }
   }, encodingMessageDelay);
+}
+
+function handleCommentBoxChange(commentBox) {
+  clearTimeout(typingTimer);
+  if (commentBox.innerText.trim() === '') {
+    return;
+  }
+  typingTimer = setTimeout(() => {
+    const comment = commentBox.innerText;
+    if (encryptionEnabled) {
+      showEncodingMessage(commentBox);
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ 
+          action: "encode", 
+          text: comment, 
+          includeDisclaimer: disclaimerEnabled 
+        }, (response) => {
+          commentBox.innerText = response.encoded;
+        });
+      }, encodingMessageDelay);
+    }
+  }, typingInterval);
+}
+
+function handlePasteEvent(event, commentBox) {
+  setTimeout(() => {
+    handleCommentBoxChange(commentBox);
+  }, 0);
+}
+
+function handleTextBoxChange(textBox) {
+  clearTimeout(typingTimer);
+  if (textBox.value.trim() === '') {
+    return;
+  }
+  typingTimer = setTimeout(() => {
+    const text = textBox.value;
+    if (encryptionEnabled) {
+      showEncodingMessage(textBox);
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ 
+          action: "encode", 
+          text: text, 
+          includeDisclaimer: disclaimerEnabled 
+        }, (response) => {
+          textBox.value = response.encoded;
+        });
+      }, encodingMessageDelay);
+    }
+  }, typingInterval);
+}
+
+function handleTextBoxPasteEvent(event, textBox) {
+  setTimeout(() => {
+    handleTextBoxChange(textBox);
+  }, 0);
 }
