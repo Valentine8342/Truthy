@@ -6,21 +6,38 @@
   <title>Truthy Settings</title>
   <style>
     body {
-      width: 200px;
-      padding: 10px;
-      font-family: Arial, sans-serif;
+      width: 240px;
+      padding: 16px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      border-radius: 12px;
+    }
+    h1 {
+      font-size: 16px;
+      color: #343a40;
+      margin-bottom: 16px;
+      text-align: center;
     }
     .toggle-container {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      background-color: #ffffff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .toggle-label {
+      font-size: 13px;
+      color: #495057;
     }
     .toggle-switch {
       position: relative;
       display: inline-block;
-      width: 60px;
-      height: 34px;
+      width: 40px;
+      height: 22px;
     }
     .toggle-switch input {
       opacity: 0;
@@ -34,41 +51,42 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
+      background-color: #e9ecef;
+      transition: .3s;
+      border-radius: 22px;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
       background-color: white;
-      transition: .4s;
+      transition: .3s;
       border-radius: 50%;
     }
     input:checked + .slider {
-      background-color: #2196F3;
+      background-color: #4CAF50;
     }
     input:checked + .slider:before {
-      transform: translateX(26px);
+      transform: translateX(18px);
     }
   </style>
 </head>
 <body>
+  <h1>Truthy Settings</h1>
   <div class="toggle-container">
-    <span>Enable Disclaimer:</span>
+    <span class="toggle-label">Auto Encrypt</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="disclaimerToggle">
+      <input type="checkbox" id="autoEncryptToggle">
       <span class="slider"></span>
     </label>
   </div>
   <div class="toggle-container">
-    <span>Auto Encrypt:</span>
+    <span class="toggle-label">Enable Disclaimer</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="autoEncryptToggle">
+      <input type="checkbox" id="disclaimerToggle">
       <span class="slider"></span>
     </label>
   </div>
