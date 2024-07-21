@@ -11,6 +11,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     encryptionEnabled = request.enabled;
   } else if (request.action === 'toggleDisclaimer') {
     disclaimerEnabled = request.enabled;
+  } else if (request.action === 'contextMenuEncrypt') {
+    selectedText = window.getSelection().toString();
+    if (selectedText) {
+      chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
+        replaceTextInDOM(selectedText, response.encoded);
+      });
+    }
   }
 });
 
@@ -40,43 +47,6 @@ const observer = new MutationObserver((mutations) => {
 
       decodeComments(commentElements);
       decodeRedditComments(redditCommentElements);
-
-      const commentBodyHeader = document.querySelector('comment-body-header');
-      if (commentBodyHeader && !commentBodyHeader.dataset.textBoxAdded) {
-        commentBodyHeader.dataset.textBoxAdded = 'true';
-        const textBox = document.createElement('textarea');
-        textBox.placeholder = 'Enter text to be encoded';
-        textBox.className = 'block w-full h-[100px] p-2 border rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-        textBox.style.marginTop = '8px';
-        textBox.style.resize = 'none';
-        commentBodyHeader.appendChild(textBox);
-
-        textBox.addEventListener('input', () => {
-          handleTextBoxChange(textBox);
-        });
-
-        textBox.addEventListener('paste', (event) => {
-          handleTextBoxPasteEvent(event, textBox);
-        });
-      }
-
-      if (shredditComposer) {
-        shredditComposer.dataset.textBoxAdded = 'true';
-        const textBox = document.createElement('textarea');
-        textBox.placeholder = 'Enter text to be encoded';
-        textBox.className = 'block w-full h-[100px] p-2 border rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-        textBox.style.marginTop = '8px';
-        textBox.style.resize = 'none';
-        shredditComposer.appendChild(textBox);
-
-        textBox.addEventListener('input', () => {
-          handleTextBoxChange(textBox);
-        });
-
-        textBox.addEventListener('paste', (event) => {
-          handleTextBoxPasteEvent(event, textBox);
-        });
-      }
     }
   });
 });
@@ -120,7 +90,7 @@ function decodeRedditComments(redditCommentElements) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
           const decodedLines = response.decoded.split('\n');
-          const firstLine = decodedLines[0].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const firstLine = decodedLines[0].replace(/&/g, '&amp;').replace(/<//g, '&lt;').replace(/>/g, '&gt;');
           const remainingLines = decodedLines.slice(1).map(line => 
             line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           ).join('<br>');
@@ -203,4 +173,14 @@ function handleTextBoxPasteEvent(event, textBox) {
   setTimeout(() => {
     handleTextBoxChange(textBox);
   }, 0);
+}
+
+function replaceTextInDOM(originalText, encodedText) {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  while (node = walker.nextNode()) {
+    if (node.nodeValue.includes(originalText)) {
+      node.nodeValue = node.nodeValue.replace(originalText, encodedText);
+    }
+  }
 }

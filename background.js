@@ -35,3 +35,17 @@ function caesarCipher(text, shift) {
     }
   }).join('');
 }
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'encryptText',
+    title: 'Encrypt Text',
+    contexts: ['selection']
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'encryptText') {
+    chrome.tabs.sendMessage(tab.id, { action: 'contextMenuEncrypt' });
+  }
+});
