@@ -1,16 +1,17 @@
-let encryptionEnabled = true;
 let disclaimerEnabled = true;
+let autoEncryptEnabled = true;
+let selectedText = '';
 
-chrome.storage.sync.get(['encryptionEnabled', 'disclaimerEnabled'], (data) => {
-  encryptionEnabled = data.encryptionEnabled !== false;
+chrome.storage.sync.get(['disclaimerEnabled', 'autoEncryptEnabled'], (data) => {
   disclaimerEnabled = data.disclaimerEnabled !== false;
+  autoEncryptEnabled = data.autoEncryptEnabled !== false;
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'toggleEncryption') {
-    encryptionEnabled = request.enabled;
-  } else if (request.action === 'toggleDisclaimer') {
+  if (request.action === 'toggleDisclaimer') {
     disclaimerEnabled = request.enabled;
+  } else if (request.action === 'toggleAutoEncrypt') {
+    autoEncryptEnabled = request.enabled;
   } else if (request.action === 'contextMenuEncrypt') {
     selectedText = window.getSelection().toString();
     if (selectedText) {
@@ -29,15 +30,16 @@ const encodingMessageDelay = 4000;
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
     if (mutation.type === 'childList') {
-      const commentBox = document.querySelector('div#contenteditable-root');
+      const commentBox = document.querySelector('div[contenteditable="true"]');
       const commentElements = document.querySelectorAll('yt-attributed-string#content-text:not([data-decoded])');
-      const shredditComposer = document.querySelector('shreddit-composer:not([data-text-box-added])');
       const redditCommentElements = document.querySelectorAll('div[id$="-comment-rtjson-content"]');
 
       if (commentBox && !commentBox.dataset.observed) {
         commentBox.dataset.observed = 'true';
         commentBox.addEventListener('input', () => {
-          handleCommentBoxChange(commentBox);
+          if (autoEncryptEnabled) {
+            handleCommentBoxChange(commentBox);
+          }
         });
 
         commentBox.addEventListener('paste', (event) => {
@@ -67,7 +69,7 @@ function decodeComments(commentElements) {
   commentElements.forEach((commentElement) => {
     commentElement.dataset.decoded = 'true';
     const commentText = commentElement.querySelector('span.yt-core-attributed-string').innerText;
-    if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
+    if (commentText.startsWith("ENCODED:")) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
           const decodedLines = response.decoded.split('\n');
@@ -86,7 +88,7 @@ function decodeComments(commentElements) {
 function decodeRedditComments(redditCommentElements) {
   redditCommentElements.forEach((commentElement) => {
     const commentText = commentElement.querySelector('p').innerText;
-    if (commentText.startsWith("ENCODED:") && encryptionEnabled) {
+    if (commentText.startsWith("ENCODED:")) {
       chrome.runtime.sendMessage({ action: "decode", text: commentText }, (response) => {
         if (response.decoded !== commentText) {
           const decodedLines = response.decoded.split('\n');
@@ -126,18 +128,16 @@ function handleCommentBoxChange(commentBox) {
   }
   typingTimer = setTimeout(() => {
     const comment = commentBox.innerText;
-    if (encryptionEnabled) {
-      showEncodingMessage(commentBox);
-      setTimeout(() => {
-        chrome.runtime.sendMessage({ 
-          action: "encode", 
-          text: comment, 
-          includeDisclaimer: disclaimerEnabled 
-        }, (response) => {
-          commentBox.innerText = response.encoded;
-        });
-      }, encodingMessageDelay);
-    }
+    showEncodingMessage(commentBox);
+    setTimeout(() => {
+      chrome.runtime.sendMessage({ 
+        action: "encode", 
+        text: comment, 
+        includeDisclaimer: disclaimerEnabled 
+      }, (response) => {
+        commentBox.innerText = response.encoded;
+      });
+    }, encodingMessageDelay);
   }, typingInterval);
 }
 
@@ -154,18 +154,16 @@ function handleTextBoxChange(textBox) {
   }
   typingTimer = setTimeout(() => {
     const text = textBox.value;
-    if (encryptionEnabled) {
-      showEncodingMessage(textBox);
-      setTimeout(() => {
-        chrome.runtime.sendMessage({ 
-          action: "encode", 
-          text: text, 
-          includeDisclaimer: disclaimerEnabled 
-        }, (response) => {
-          textBox.value = response.encoded;
-        });
-      }, encodingMessageDelay);
-    }
+    showEncodingMessage(textBox);
+    setTimeout(() => {
+      chrome.runtime.sendMessage({ 
+        action: "encode", 
+        text: text, 
+        includeDisclaimer: disclaimerEnabled 
+      }, (response) => {
+        textBox.value = response.encoded;
+      });
+    }, encodingMessageDelay);
   }, typingInterval);
 }
 
