@@ -1,6 +1,7 @@
 let disclaimerEnabled = true;
 let autoEncryptEnabled = true;
 let selectedText = '';
+let modal;
 
 chrome.storage.sync.get(['disclaimerEnabled', 'autoEncryptEnabled'], (data) => {
   disclaimerEnabled = data.disclaimerEnabled !== false;
@@ -19,6 +20,80 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         replaceTextInDOM(selectedText, response.encoded);
       });
     }
+  } else if (request.action === 'showModal') {
+    const initialSelectedText = window.getSelection().toString();
+    setTimeout(() => {
+      if (initialSelectedText === window.getSelection().toString() && !window.location.href.includes('www.facebook.com')) {
+        showModal(request.encodedText);
+      }
+    }, 1500);
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  selectedText = window.getSelection().toString();
+  if (selectedText) {
+    chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled });
+  }
+});
+
+function showModal(encodedText) {
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75';
+    modal.innerHTML = `
+      <div class="bg-white p-4 rounded shadow-lg max-w-lg w-full" onclick="event.stopPropagation()">
+        <h2 class="text-xl font-bold mb-4">Encoded Text</h2>
+        <textarea class="w-full p-2 border rounded" rows="5" readonly>${encodedText}</textarea>
+        <div class="mt-4 flex justify-end">
+          <button class="bg-blue-500 text-white px-4 py-2 rounded" id="copyButton">Copy</button>
+          <button class="ml-2 bg-gray-500 text-white px-4 py-2 rounded" id="closeButton">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('copyButton').addEventListener('click', copyToClipboard);
+    document.getElementById('closeButton').addEventListener('click', closeModal);
+  } else {
+    modal.querySelector('textarea').value = encodedText;
+    modal.style.display = 'flex';
+  }
+  modal.style.display = 'flex';
+  document.body.classList.add('modal-open');
+
+  // Clear text selection
+  window.getSelection().removeAllRanges();
+
+  // Delete original selected text
+  deleteSelectedText();
+}
+
+function closeModal() {
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function deleteSelectedText() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) {
+    return;
+  }
+  selection.deleteFromDocument();
+}
+
+function copyToClipboard() {
+  const textarea = modal.querySelector('textarea');
+  textarea.select();
+  document.execCommand('copy');
+  window.getSelection().removeAllRanges(); // Deselect the text
+}
+
+document.addEventListener('mousedown', (event) => {
+  if (modal && !modal.contains(event.target)) {
+    closeModal();
   }
 });
 
@@ -159,7 +234,7 @@ function replaceTextInDOM(originalText, encodedText) {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
   let node;
   while (node = walker.nextNode()) {
-    if (node.nodeValue.includes(originalText)) {
+    if (node.nodeValue.includes(originalText) && !node.parentElement.closest('.modal')) {
       node.nodeValue = node.nodeValue.replace(originalText, encodedText);
     }
   }

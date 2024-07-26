@@ -2,7 +2,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "encode") {
     const encoded = caesarCipher(request.text, 3);
     const appendedMessage = request.includeDisclaimer ? "\n\nTruthy.Network" : "";
-    sendResponse({ encoded: `ENCODED:${encoded}${appendedMessage}` });
+    const encodedText = `ENCODED:${encoded}${appendedMessage}`;
+    sendResponse({ encoded: encodedText });
+    chrome.tabs.sendMessage(sender.tab.id, { action: 'showModal', encodedText: encodedText });
   } else if (request.action === "decode") {
     if (request.text.startsWith("ENCODED:")) {
       const fullText = request.text.substring(8);
