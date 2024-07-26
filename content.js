@@ -13,8 +13,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'toggleAutoEncrypt') {
     autoEncryptEnabled = request.enabled;
   } else if (request.action === 'contextMenuEncrypt') {
-    selectedText = window.getSelection().toString();
+    const selection = window.getSelection();
+    selectedText = selection.toString();
     if (selectedText) {
+      const range = selection.getRangeAt(0);
       chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
         replaceTextInDOM(selectedText, response.encoded);
       });
@@ -117,7 +119,15 @@ function handleCommentBoxChange(commentBox) {
         text: comment, 
         includeDisclaimer: disclaimerEnabled 
       }, (response) => {
-        commentBox.innerText = response.encoded;
+        const encodedLines = response.encoded.split('\n');
+        commentBox.innerHTML = '';
+        encodedLines.forEach((line, index) => {
+          const p = document.createElement('p');
+          p.textContent = line;
+          p.className = 'first:mt-0 last:mb-0';
+          commentBox.appendChild(p);
+        });
+        commentBox.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
       });
     }, encodingMessageDelay);
   }, typingInterval);
@@ -156,11 +166,43 @@ function handleTextBoxPasteEvent(event, textBox) {
 }
 
 function replaceTextInDOM(originalText, encodedText) {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-  let node;
-  while (node = walker.nextNode()) {
-    if (node.nodeValue.includes(originalText)) {
-      node.nodeValue = node.nodeValue.replace(originalText, encodedText);
-    }
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  const originalStartOffset = range.startOffset;
+  const originalEndOffset = range.endOffset;
+  const originalStartContainer = range.startContainer;
+  const originalEndContainer = range.endContainer;
+  
+  range.deleteContents();
+
+  const textNode = document.createTextNode(encodedText);
+  range.insertNode(textNode);
+
+  range.setStart(textNode, 0);
+  range.setEnd(textNode, encodedText.length);
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+
+  if (!document.execCommand('insertText', false, encodedText)) {
+    const textNode = document.createTextNode(encodedText);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.setEndAfter(textNode);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  // Restore the original selection
+  try {
+    range.setStart(originalStartContainer, originalStartOffset);
+    range.setEnd(originalEndContainer, originalEndOffset);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } catch (e) {
+    console.error('Error restoring selection:', e);
   }
 }

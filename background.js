@@ -25,15 +25,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * @returns {string} - The encoded or decoded text.
  */
 function caesarCipher(text, shift) {
-  return text.split('').map(char => {
-    const code = char.charCodeAt(0);
-    if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
-      const base = code >= 97 ? 97 : 65;
-      return String.fromCharCode(((code - base + shift + 26) % 26) + base);
-    } else {
-      return char;
-    }
-  }).join('');
+  return text.split('\n').map(line => 
+    line.split('').map(char => {
+      const code = char.charCodeAt(0);
+      if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
+        const base = code >= 97 ? 97 : 65;
+        return String.fromCharCode(((code - base + shift + 26) % 26) + base);
+      } else {
+        return char;
+      }
+    }).join('')
+  ).join('\n');
 }
 
 chrome.runtime.onInstalled.addListener(() => {
