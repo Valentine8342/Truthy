@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const splitIndex = fullText.lastIndexOf("\n\nTruthy.Network");
       const encodedText = splitIndex !== -1 ? fullText.substring(0, splitIndex) : fullText;
       const appendedMessage = splitIndex !== -1 ? fullText.substring(splitIndex) : "";
-      const decodedMessage = caesarCipher(encodedText, -3);
+      const decodedMessage = caesarCipher(encodedText.trim(), -3);
       sendResponse({ decoded: `${decodedMessage}${appendedMessage}` });
     } else {
       sendResponse({ decoded: request.text });
@@ -26,6 +26,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 function caesarCipher(text, shift) {
   return text.split('').map(char => {
+    if (char === '\n') {
+      return '\n';
+    }
     const code = char.charCodeAt(0);
     if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
       const base = code >= 97 ? 97 : 65;

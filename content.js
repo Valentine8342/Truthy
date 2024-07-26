@@ -13,11 +13,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'toggleAutoEncrypt') {
     autoEncryptEnabled = request.enabled;
   } else if (request.action === 'contextMenuEncrypt') {
-    selectedText = window.getSelection().toString();
-    if (selectedText) {
-      chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
-        replaceTextInDOM(selectedText, response.encoded);
-      });
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const selectedText = range.toString();
+      if (selectedText) {
+        chrome.runtime.sendMessage({ 
+          action: 'encode', 
+          text: selectedText, 
+          includeDisclaimer: disclaimerEnabled 
+        }, (response) => {
+          replaceTextInDOM(selectedText, response.encoded);
+        });
+      }
     }
   }
 });
@@ -117,7 +125,10 @@ function handleCommentBoxChange(commentBox) {
         text: comment, 
         includeDisclaimer: disclaimerEnabled 
       }, (response) => {
-        commentBox.innerText = response.encoded;
+        const encodedLines = response.encoded.split('\n');
+        commentBox.innerHTML = encodedLines.map((line, index) => 
+          index === 0 ? line : `<br>${line}`
+        ).join('');
       });
     }, encodingMessageDelay);
   }, typingInterval);
@@ -156,11 +167,70 @@ function handleTextBoxPasteEvent(event, textBox) {
 }
 
 function replaceTextInDOM(originalText, encodedText) {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-  let node;
-  while (node = walker.nextNode()) {
-    if (node.nodeValue.includes(originalText)) {
-      node.nodeValue = node.nodeValue.replace(originalText, encodedText);
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    
+    // Find all text nodes within the container
+    const textNodes = [];
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    while (node = walker.nextNode()) {
+      textNodes.push(node);
+    }
+
+    // Find the nodes containing the selected text
+    let startNode, endNode, startOffset, endOffset;
+    let remainingLength = originalText.length;
+    for (let i = 0; i < textNodes.length; i++) {
+      const nodeText = textNodes[i].nodeValue;
+      if (!startNode && nodeText.includes(originalText.substring(0, nodeText.length))) {
+        startNode = textNodes[i];
+        startOffset = nodeText.indexOf(originalText.substring(0, nodeText.length));
+      }
+      if (startNode) {
+        remainingLength -= nodeText.length;
+        if (remainingLength <= 0) {
+          endNode = textNodes[i];
+          endOffset = nodeText.length + remainingLength;
+          break;
+        }
+      }
+    }
+
+    // Replace the text in the found nodes
+    if (startNode && endNode) {
+      if (startNode === endNode) {
+        startNode.nodeValue = startNode.nodeValue.substring(0, startOffset) + 
+                              encodedText + 
+                              startNode.nodeValue.substring(endOffset);
+      } else {
+        startNode.nodeValue = startNode.nodeValue.substring(0, startOffset) + encodedText;
+        const nodesToRemove = [];
+        let currentNode = startNode.nextSibling;
+        while (currentNode && currentNode !== endNode) {
+          nodesToRemove.push(currentNode);
+          currentNode = currentNode.nextSibling;
+        }
+        nodesToRemove.forEach(node => node.parentNode.removeChild(node));
+        if (endNode) {
+          endNode.nodeValue = endNode.nodeValue.substring(endOffset);
+        }
+      }
     }
   }
+}
+
+function getNextNode(node) {
+  if (node.firstChild) {
+    return node.firstChild;
+  }
+  while (node) {
+    if (node.nextSibling) {
+      return node.nextSibling;
+    }
+    node = node.parentNode;
+  }
+  return null;
 }
