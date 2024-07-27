@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const initialSelectedText = window.getSelection().toString();
     setTimeout(() => {
       if (initialSelectedText === window.getSelection().toString() && !window.location.href.includes('www.facebook.com')) {
-        showModal(request.encodedText);
+        showModal();
       }
     }, 1500);
   }
@@ -37,7 +37,7 @@ document.addEventListener('mouseup', () => {
   }
 });
 
-function showModal(encodedText) {
+function showModal() {
   if (!selectedText) {
     return;
   }
@@ -48,7 +48,7 @@ function showModal(encodedText) {
     modal.innerHTML = `
       <div class="bg-white p-4 rounded shadow-lg max-w-lg w-full" onclick="event.stopPropagation()">
         <h2 class="text-xl font-bold mb-4">Encoded Text</h2>
-        <textarea class="w-full p-2 border rounded" rows="5" readonly>${encodedText}</textarea>
+        <textarea class="w-full p-2 border rounded" rows="5" readonly>Encoding Selected Text...</textarea>
         <div class="mt-4 flex justify-end">
           <button class="bg-blue-500 text-white px-4 py-2 rounded" id="copyButton">Copy</button>
           <button class="ml-2 bg-gray-500 text-white px-4 py-2 rounded" id="closeButton">Close</button>
@@ -60,11 +60,18 @@ function showModal(encodedText) {
     document.getElementById('copyButton').addEventListener('click', copyToClipboard);
     document.getElementById('closeButton').addEventListener('click', closeModal);
   } else {
-    modal.querySelector('textarea').value = encodedText;
+    modal.querySelector('textarea').value = 'Encoding Selected Text...';
     modal.style.display = 'flex';
   }
+
   modal.style.display = 'flex';
   document.body.classList.add('modal-open');
+
+  // Encode the text after showing the modal with the loading message
+  chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
+    const finalEncodedText = response.encoded;
+    modal.querySelector('textarea').value = finalEncodedText;
+  });
 
   window.getSelection().removeAllRanges();
   deleteSelectedText();
