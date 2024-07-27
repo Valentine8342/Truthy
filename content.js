@@ -44,14 +44,19 @@ function showModal() {
 
   if (!modal) {
     modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75';
+    modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50';
     modal.innerHTML = `
-      <div class="bg-white p-4 rounded shadow-lg max-w-lg w-full" onclick="event.stopPropagation()">
-        <h2 class="text-xl font-bold mb-4">Encoded Text</h2>
-        <textarea class="w-full p-2 border rounded" rows="5" readonly>Encoding Selected Text...</textarea>
-        <div class="mt-4 flex justify-end">
-          <button class="bg-blue-500 text-white px-4 py-2 rounded" id="copyButton">Copy</button>
-          <button class="ml-2 bg-gray-500 text-white px-4 py-2 rounded" id="closeButton">Close</button>
+      <div style="background-color: white; color: #1f2937; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); max-width: 28rem; width: 100%; transform: scale(1); transition: all 0.2s;">
+        <div style="padding: 1.5rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem; margin-top: 0rem; text-align: center;">Encoded Text</h2>
+          <textarea style="width: 100%; padding: 0.75rem; background-color: #f3f4f6; color: #1f2937; border-radius: 0.375rem; border: 1px solid #d1d5db; focus:ring: 2px solid #3b82f6; focus:border: transparent;" 
+            rows="5" readonly>Encoding Selected Text...</textarea>
+          <div style="margin-top: 0.5rem; margin-bottom: 0.5rem; display: flex; justify-content: center; gap: 1.5rem;">
+            <button style="width: 7rem; padding: 0.5rem; background-color: #3b82f6; color: white; font-weight: 500; border-radius: 0.375rem; transition: background-color 0.15s ease-in-out; display: flex; align-items: center; justify-content: center;" 
+              id="copyButton">Copy</button>
+            <button style="width: 7rem; padding: 0.5rem; background-color: #ef4444; color: white; font-weight: 500; border-radius: 0.375rem; transition: background-color 0.15s ease-in-out; display: flex; align-items: center; justify-content: center;" 
+              id="closeButton">Close</button>
+          </div>
         </div>
       </div>
     `;
@@ -67,7 +72,6 @@ function showModal() {
   modal.style.display = 'flex';
   document.body.classList.add('modal-open');
 
-  // Encode the text after showing the modal with the loading message
   chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
     const finalEncodedText = response.encoded;
     modal.querySelector('textarea').value = finalEncodedText;
