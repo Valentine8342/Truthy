@@ -38,6 +38,10 @@ document.addEventListener('mouseup', () => {
 });
 
 function showModal(encodedText) {
+  if (!selectedText) {
+    return;
+  }
+
   if (!modal) {
     modal = document.createElement('div');
     modal.className = 'fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75';
@@ -62,10 +66,7 @@ function showModal(encodedText) {
   modal.style.display = 'flex';
   document.body.classList.add('modal-open');
 
-  // Clear text selection
   window.getSelection().removeAllRanges();
-
-  // Delete original selected text
   deleteSelectedText();
 }
 
@@ -88,7 +89,7 @@ function copyToClipboard() {
   const textarea = modal.querySelector('textarea');
   textarea.select();
   document.execCommand('copy');
-  window.getSelection().removeAllRanges(); // Deselect the text
+  window.getSelection().removeAllRanges();
 }
 
 document.addEventListener('mousedown', (event) => {
