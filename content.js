@@ -22,11 +22,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
   } else if (request.action === 'showModal') {
     const initialSelectedText = window.getSelection().toString();
+    const delay = isYouTube() ? 100000 : 1500;
     setTimeout(() => {
       if (initialSelectedText === window.getSelection().toString() && !window.location.href.includes('www.facebook.com')) {
         showModal();
       }
-    }, 1500);
+    }, delay);
   }
 });
 
@@ -37,8 +38,8 @@ document.addEventListener('mouseup', () => {
   }
 });
 
-function showModal() {
-  if (!selectedText) {
+function showModal(encodedText = null) {
+  if (!selectedText && !encodedText) {
     return;
   }
 
@@ -50,7 +51,7 @@ function showModal() {
         <div style="padding: 1.5rem;">
           <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem; margin-top: 0rem; text-align: center;">Encoded Text</h2>
           <textarea style="width: 100%; padding: 0.75rem; background-color: #f3f4f6; color: #1f2937; border-radius: 0.375rem; border: 1px solid #d1d5db; focus:ring: 2px solid #3b82f6; focus:border: transparent;" 
-            rows="5" readonly>Encoding Selected Text...</textarea>
+            rows="5" readonly>${encodedText || 'Encoding Selected Text...'}</textarea>
           <div style="margin-top: 0.5rem; margin-bottom: 0.5rem; display: flex; justify-content: center; gap: 1.5rem;">
             <button style="width: 7rem; padding: 0.5rem; background-color: #3b82f6; color: white; font-weight: 500; border-radius: 0.375rem; transition: background-color 0.15s ease-in-out; display: flex; align-items: center; justify-content: center;" 
               id="copyButton">Copy</button>
@@ -65,20 +66,24 @@ function showModal() {
     document.getElementById('copyButton').addEventListener('click', copyToClipboard);
     document.getElementById('closeButton').addEventListener('click', closeModal);
   } else {
-    modal.querySelector('textarea').value = 'Encoding Selected Text...';
+    modal.querySelector('textarea').value = encodedText || 'Encoding Selected Text...';
     modal.style.display = 'flex';
   }
 
   modal.style.display = 'flex';
   document.body.classList.add('modal-open');
 
-  chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
-    const finalEncodedText = response.encoded;
-    modal.querySelector('textarea').value = finalEncodedText;
-  });
+  if (!encodedText) {
+    chrome.runtime.sendMessage({ action: 'encode', text: selectedText, includeDisclaimer: disclaimerEnabled }, (response) => {
+      const finalEncodedText = response.encoded;
+      modal.querySelector('textarea').value = finalEncodedText;
+    });
+  }
 
   window.getSelection().removeAllRanges();
-  deleteSelectedText();
+  if (!isYouTube()) {
+    deleteSelectedText();
+  }
 }
 
 function closeModal() {
@@ -122,14 +127,26 @@ const observer = new MutationObserver((mutations) => {
 
       if (commentBox && !commentBox.dataset.observed) {
         commentBox.dataset.observed = 'true';
-        commentBox.addEventListener('input', () => {
-          if (autoEncryptEnabled) {
-            handleCommentBoxChange(commentBox);
-          }
-        });
+        if (isYouTube()) {
+          commentBox.addEventListener('input', () => {
+            if (autoEncryptEnabled) {
+              handleYouTubeCommentBox(commentBox);
+            }
+          });
+        } else {
+          commentBox.addEventListener('input', () => {
+            if (autoEncryptEnabled) {
+              handleCommentBoxChange(commentBox);
+            }
+          });
+        }
 
         commentBox.addEventListener('paste', (event) => {
-          handlePasteEvent(event, commentBox);
+          if (isYouTube()) {
+            handleYouTubeCommentBox(commentBox);
+          } else {
+            handlePasteEvent(event, commentBox);
+          }
         });
       }
     }
@@ -250,4 +267,25 @@ function replaceTextInDOM(originalText, encodedText) {
       node.nodeValue = node.nodeValue.replace(originalText, encodedText);
     }
   }
+}
+
+function handleYouTubeCommentBox(commentBox) {
+  clearTimeout(typingTimer);
+  if (commentBox.innerText.trim() === '') {
+    return;
+  }
+  typingTimer = setTimeout(() => {
+    const comment = commentBox.innerText;
+    chrome.runtime.sendMessage({ 
+      action: "encode", 
+      text: comment, 
+      includeDisclaimer: disclaimerEnabled 
+    }, (response) => {
+      showModal(response.encoded);
+    });
+  }, typingInterval);
+}
+
+function isYouTube() {
+  return window.location.hostname.includes('youtube.com');
 }
